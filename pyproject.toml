@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mimirag"
-version = "0.1.0.dev0"
+dynamic = ["version"]
 description = "Retrieval with verifiable, content-addressed citations over documents and source code: the core of a RAG system."
 readme = "README.md"
 license = "Apache-2.0"
@@ -30,6 +30,9 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.15", "mypy>=1.18"]
+
+[tool.hatch.version]
+path = "src/mimirag/__init__.py"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
