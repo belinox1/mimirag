@@ -1,4 +1,1 @@
-"""MimiRAG: retrieval-augmented generation with verifiable citations.
-
-Pre-alpha placeholder; no functionality yet.
-"""
+"""MimiRAG: retrieval with verifiable citations over documents and source code."""

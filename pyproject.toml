@@ -4,20 +4,52 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mimirag"
-version = "0.0.1"
-description = "Retrieval-augmented generation with verifiable citations over technical documentation, source code and immutable records."
+version = "0.1.0.dev0"
+description = "Retrieval with verifiable, content-addressed citations over documents and source code: the core of a RAG system."
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [{ name = "Bernardo Lino de Oliveira" }]
-keywords = ["rag", "retrieval", "citations", "mcp", "information-retrieval"]
+keywords = ["rag", "retrieval", "citations", "bm25", "sqlite", "information-retrieval", "evaluation"]
 classifiers = [
-    "Development Status :: 1 - Planning",
+    "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Typing :: Typed",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Text Processing :: Indexing",
 ]
 dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.15", "mypy>=1.18"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.format]
+quote-style = "single"
+skip-magic-trailing-comma = true
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "C4", "RUF", "PL", "PT"]
+ignore = ["PLR0913", "PLR2004", "C408", "SIM108"]
+
+[tool.ruff.lint.isort]
+force-sort-within-sections = true
+split-on-trailing-comma = false
+
+[tool.mypy]
+strict = true
+files = ["src"]
