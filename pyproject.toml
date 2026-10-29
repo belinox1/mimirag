@@ -28,6 +28,10 @@ classifiers = [
 ]
 dependencies = []
 
+[project.urls]
+Repository = "https://github.com/belinox1/mimirag"
+Issues = "https://github.com/belinox1/mimirag/issues"
+
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.15", "mypy>=1.18"]
 

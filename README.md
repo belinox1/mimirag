@@ -1,5 +1,9 @@
 # MimiRAG
 
+[![CI](https://github.com/belinox1/mimirag/actions/workflows/ci.yml/badge.svg)](https://github.com/belinox1/mimirag/actions/workflows/ci.yml)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+
 Retrieval with verifiable citations over documents and source code: the
 evidence core of a retrieval-augmented generation (RAG) system.
 
