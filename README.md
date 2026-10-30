@@ -116,8 +116,9 @@ The evaluation package scores rankings without building an index:
 
 1. `document_nodes` splits extracted pages into the same units as the index,
    and `MirrorIndex` ranks them with the index's BM25 query and tie order.
-   Ranking-only `headers` (such as document titles) can be prepended to test
-   ranking variants.
+   Ranking variants can prepend ranking-only `headers` (such as document
+   titles), use Porter stemming (`tokenizer='porter unicode61'`) or drop
+   `stopwords` from questions; the defaults rank exactly as the index does.
 2. A reference case lists gold evidence (a quote, its source and an optional
    page or line range) and required facts (nuggets), each supported by one or
    more alternative sets of evidence. `align` finds each quote in the
@@ -133,6 +134,9 @@ The evaluation package scores rankings without building an index:
    interval and a sign-flip randomization test. `run_manifest` records a run
    with the hashes needed to re-score it later, and `blinded_pool` merges
    several runs' results into a shuffled judgment packet without run labels.
+   `packet_cost` reports the characters and approximate tokens (words and
+   punctuation marks, not model tokens) of ranked units per useful evidence
+   item.
 
 What the numbers measure:
 - Coverage and budgets count the text of whole units, not the truncated

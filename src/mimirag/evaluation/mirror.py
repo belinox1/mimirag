@@ -7,12 +7,14 @@ the index when the nodes are all of its passages in manifest order.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
+import re
 import sqlite3
 from types import TracebackType
 from typing import Any
 
 from ..chunking import units
+from ..errors import MimiRAGError
 from ..index import fts_query
 from ..integrity import fingerprint
 from .alignment import Documents
@@ -47,15 +49,32 @@ def document_nodes(documents: Documents) -> dict[str, dict[str, Any]]:
     return nodes
 
 
+TOKENIZERS = frozenset({'unicode61', 'porter unicode61'})
+"""FTS5 tokenizers a mirror accepts: the index's own, and the same with Porter (English) stemming."""
+
+
 class MirrorIndex:
     """FTS5 BM25 over nodes, with ties going to insertion order as in the index.
 
     Optional `headers` (node ID to text) are prepended to the ranked text only.
-    Use it as a context manager, or call `close`.
+    A ranking variant can choose another `tokenizer` from `TOKENIZERS`, and drop
+    `stopwords` (compared casefolded) from questions before the index's word cap.
+    The defaults rank exactly as the index does. Use it as a context manager, or
+    call `close`.
     """
 
-    def __init__(self, nodes: Mapping[str, Mapping[str, Any]], headers: Mapping[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        nodes: Mapping[str, Mapping[str, Any]],
+        headers: Mapping[str, str] | None = None,
+        *,
+        tokenizer: str = 'unicode61',
+        stopwords: Collection[str] = frozenset(),
+    ) -> None:
+        if tokenizer not in TOKENIZERS:
+            raise MimiRAGError(f'Unknown tokenizer: {tokenizer}')
         self.ids = list(nodes)
+        self.stopwords = frozenset(word.casefold() for word in stopwords)
         self.db = sqlite3.connect(':memory:')
         headers = headers or {}
 
@@ -64,7 +83,8 @@ class MirrorIndex:
             return '\n'.join(filter(None, [headers.get(n, ''), body]))
 
         try:
-            self.db.execute('CREATE VIRTUAL TABLE passage_fts USING fts5(text)')
+            options = '' if tokenizer == 'unicode61' else f", tokenize='{tokenizer}'"
+            self.db.execute(f'CREATE VIRTUAL TABLE passage_fts USING fts5(text{options})')
             rows = [(rowid, ranked_text(n)) for rowid, n in enumerate(self.ids, 1)]
             self.db.executemany('INSERT INTO passage_fts(rowid, text) VALUES (?, ?)', rows)
         except Exception:
@@ -73,6 +93,8 @@ class MirrorIndex:
 
     def rank(self, question: str) -> list[str]:
         """Node IDs matching any word of `question`, best first."""
+        if self.stopwords:
+            question = ' '.join(w for w in re.findall(r'\w+', question) if w.casefold() not in self.stopwords)
         rows = self.db.execute(
             'SELECT rowid FROM passage_fts WHERE passage_fts MATCH ? ORDER BY bm25(passage_fts), rowid',
             (fts_query(question),),

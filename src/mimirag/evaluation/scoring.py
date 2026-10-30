@@ -9,6 +9,7 @@ they take the run's extracted documents, its node inventory and ranked node IDs.
 from __future__ import annotations
 
 from collections.abc import Collection, Iterable, Mapping, Sequence
+import re
 from typing import Any, Literal
 
 from ..errors import MimiRAGError
@@ -19,6 +20,9 @@ SCORER = 'scorer-v1.2'
 
 TEXT_KINDS = frozenset({'text-layer', 'git-blob'})
 PAGE_IMAGE = 'page-image'
+
+TOKEN = re.compile(r'\w+|[^\w\s]')
+"""Approximate token: a word or a single punctuation mark; not the token of any language model."""
 
 Nodes = Mapping[str, Mapping[str, Any]]
 """Retrievable units by ID, each with `doc`, `page`, raw `start` and `end` offsets and `text`."""
@@ -43,6 +47,24 @@ def within_budget(
                 break
         kept.append(node_id)
     return kept
+
+
+def packet_cost(ranked: Iterable[str], nodes: Nodes, useful: int) -> dict[str, Any]:
+    """Characters and approximate tokens (`TOKEN`) of the ranked units, per useful evidence item.
+
+    `useful` is the caller's count of evidence items the units retrieve (for example,
+    vital items in the `retrieved` state). With none, the per-item costs are None.
+    """
+    texts = [nodes[node_id]['text'] for node_id in ranked]
+    characters = sum(len(text) for text in texts)
+    tokens = sum(len(TOKEN.findall(text)) for text in texts)
+    return dict(
+        characters=characters,
+        tokens=tokens,
+        useful=useful,
+        characters_per_item=characters / useful if useful else None,
+        tokens_per_item=tokens / useful if useful else None,
+    )
 
 
 def evidence_status(

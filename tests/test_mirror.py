@@ -1,5 +1,7 @@
 from helpers import source
+import pytest
 
+from mimirag.errors import MimiRAGError
 from mimirag.evaluation import MirrorIndex, blinded_pool, document_nodes, node_id, run_nodes
 from mimirag.extraction import extract_document
 from mimirag.index import Index
@@ -52,6 +54,22 @@ def test_headers_change_ranking_only():
         assert beta not in plain.rank('alpha')
         assert beta in headed.rank('alpha')
     assert nodes[beta]['text'] == 'Beta page.'
+
+
+def test_stemming_and_stopwords_are_ranking_variants():
+    text = f'The lanterns burned{LONG}\n\nA lantern of the keeper{LONG}\n\nOf the night{LONG}\n'
+    nodes = document_nodes({'d': {None: text}})
+    ids = list(nodes)
+    variant = dict(tokenizer='porter unicode61', stopwords={'THE', 'of'})
+    with MirrorIndex(nodes) as plain, MirrorIndex(nodes, **variant) as stemmed:
+        assert plain.rank('lantern') == [ids[1]]
+        assert stemmed.rank('lantern') == ids[:2]
+        assert ids[2] in plain.rank('of the lantern')
+        assert ids[2] not in stemmed.rank('of the lantern')  # stopwords dropped from the question only
+        with pytest.raises(MimiRAGError, match='at least one word'):
+            stemmed.rank('Of the')
+    with pytest.raises(MimiRAGError, match='Unknown tokenizer'):
+        MirrorIndex(nodes, tokenizer='trigram')
 
 
 def test_blinded_pool_hides_runs_and_is_seeded():

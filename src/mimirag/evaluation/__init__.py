@@ -1,9 +1,9 @@
 """Retrieval evaluation: quote alignment, nugget coverage, rank metrics, paired comparisons,
-run manifests, an in-memory mirror of the index and blinded judgment pools."""
+run manifests, packet cost, an in-memory mirror of the index and blinded judgment pools."""
 
 from .alignment import ALIGNMENT, align, cited_page, cited_pages, document_key, line_window, normalize
 from .comparison import macro, paired
-from .mirror import MirrorIndex, document_nodes, node_id
+from .mirror import TOKENIZERS, MirrorIndex, document_nodes, node_id
 from .pooling import blinded_pool
 from .runs import check_pair, run_manifest, run_nodes
 from .scoring import (
@@ -12,6 +12,7 @@ from .scoring import (
     condensed,
     evidence_status,
     judged_at,
+    packet_cost,
     reciprocal_rank,
     score_case,
     unmapped_rate,
@@ -22,6 +23,7 @@ __all__ = [
     'ALIGNMENT',
     'SCORER',
     'TEXT_KINDS',
+    'TOKENIZERS',
     'MirrorIndex',
     'align',
     'blinded_pool',
@@ -37,6 +39,7 @@ __all__ = [
     'macro',
     'node_id',
     'normalize',
+    'packet_cost',
     'paired',
     'reciprocal_rank',
     'run_manifest',

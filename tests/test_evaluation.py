@@ -272,3 +272,14 @@ def test_run_manifests_carry_ranked_nodes_and_pairs_must_share_the_corpus():
     ev.check_pair(first, fewer, same_units=False)
     ranked['c1']['blind'].clear()  # the manifest keeps its own copy
     assert first['ranked'] == {'c1': {'blind': ['fly', 'owls']}}
+
+
+def test_packet_cost_per_useful_item():
+    cost = ev.packet_cost(['owls', 'hoot'], NODES, useful=2)
+    assert cost['characters'] == len('Owls hunt at night.') + len('def hoot():\n    return "hoo"')
+    assert cost['tokens'] == 5 + 9  # 'Owls hunt at night .' and 'def hoot ( ) : return " hoo "'
+    assert cost['characters_per_item'] == cost['characters'] / 2
+    assert cost['tokens_per_item'] == 7
+    empty = ev.packet_cost(['owls'], NODES, useful=0)
+    assert empty['characters_per_item'] is None
+    assert empty['tokens_per_item'] is None
