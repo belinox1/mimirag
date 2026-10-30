@@ -119,6 +119,10 @@ The evaluation package scores rankings without building an index:
    Ranking variants can prepend ranking-only `headers` (such as document
    titles), use Porter stemming (`tokenizer='porter unicode61'`) or drop
    `stopwords` from questions; the defaults rank exactly as the index does.
+   `rank_scored` also returns raw SQLite BM25 scores (smaller is better).
+   The pure `rrf(rankings, constant=...)` and `convex(lexical, dense, weight=...)`
+   helpers fuse caller-selected candidates. Convex inputs are higher-is-better
+   (negate BM25), normalized per channel; no model runtime is included.
 2. A reference case lists gold evidence (a quote, its source and an optional
    page or line range) and required facts (nuggets), each supported by one or
    more alternative sets of evidence. `align` finds each quote in the

@@ -43,6 +43,9 @@ def test_mirror_ranks_like_the_index(tmp_path):
             locators = [item['locator'] for item in served]
             want = [node_id(x['source'], x['page'], *x['lines']) for x in locators]
             assert mirror.rank(query) == want
+            scored = mirror.rank_scored(query)
+            assert [node for node, _ in scored] == want
+            assert [score for _, score in scored] == sorted(score for _, score in scored)
             if query == 'river':
                 assert len(want) == 6  # two units per file, b and c tied
 

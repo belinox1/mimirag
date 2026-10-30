@@ -93,13 +93,21 @@ class MirrorIndex:
 
     def rank(self, question: str) -> list[str]:
         """Node IDs matching any word of `question`, best first."""
+        return [node for node, _ in self.rank_scored(question)]
+
+    def rank_scored(self, question: str) -> list[tuple[str, float]]:
+        """Node IDs and raw BM25 scores, ascending (smaller is better).
+
+        Candidate depth is the caller's responsibility. Ties retain insertion order.
+        """
         if self.stopwords:
             question = ' '.join(w for w in re.findall(r'\w+', question) if w.casefold() not in self.stopwords)
         rows = self.db.execute(
-            'SELECT rowid FROM passage_fts WHERE passage_fts MATCH ? ORDER BY bm25(passage_fts), rowid',
+            'SELECT rowid, bm25(passage_fts) FROM passage_fts WHERE passage_fts MATCH ? '
+            'ORDER BY bm25(passage_fts), rowid',
             (fts_query(question),),
         )
-        return [self.ids[rowid - 1] for (rowid,) in rows]
+        return [(self.ids[rowid - 1], score) for rowid, score in rows]
 
     def close(self) -> None:
         self.db.close()

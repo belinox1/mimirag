@@ -3,6 +3,7 @@ run manifests, packet cost, an in-memory mirror of the index and blinded judgmen
 
 from .alignment import ALIGNMENT, align, cited_page, cited_pages, document_key, line_window, normalize
 from .comparison import macro, paired
+from .fusion import convex, rrf
 from .mirror import TOKENIZERS, MirrorIndex, document_nodes, node_id
 from .pooling import blinded_pool
 from .runs import check_pair, run_manifest, run_nodes
@@ -31,6 +32,7 @@ __all__ = [
     'cited_page',
     'cited_pages',
     'condensed',
+    'convex',
     'document_key',
     'document_nodes',
     'evidence_status',
@@ -42,6 +44,7 @@ __all__ = [
     'packet_cost',
     'paired',
     'reciprocal_rank',
+    'rrf',
     'run_manifest',
     'run_nodes',
     'score_case',
