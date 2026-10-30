@@ -5,6 +5,7 @@ The details behind the [quick start](../README.md#quick-start).
 - [Design principles](#design-principles)
 - [How retrieval works](#how-retrieval-works)
 - [Evaluation](#evaluation)
+- [Candidate retrieval and local vectors](#candidate-retrieval-and-local-vectors)
 - [Package layout and errors](#package-layout)
 - [Usage: manifests, code search and OCR](#usage)
 - [Roadmap](#roadmap)
@@ -27,8 +28,8 @@ The details behind the [quick start](../README.md#quick-start).
   syntax, code reads stay within the declared scope, results are bounded and
   nothing retrieved is executed. Manifests, repository roots and OCR commands
   are deployment configuration and are trusted as given.
-- **Offline.** No network access, models or downloads; the tests need no
-  network either.
+- **Offline.** Retrieval needs no network access or model downloads. The optional
+  embedding adapter accepts verified local assets only; tests use injected stubs.
 - **Measured before claimed.** Retrieval changes are judged by a pre-declared,
   paired comparison against the current baseline, which the evaluation
   package provides.
@@ -99,7 +100,7 @@ The evaluation package scores rankings without building an index:
    `rank_scored` also returns raw SQLite BM25 scores (smaller is better).
    The pure `rrf(rankings, constant=...)` and `convex(lexical, dense, weight=...)`
    helpers fuse caller-selected candidates. Convex inputs are higher-is-better
-   (negate BM25), normalized per channel; no model runtime is included.
+   (negate BM25), normalized per channel; these fusion helpers load no models.
 2. A reference case lists gold evidence (a quote, its source and an optional
    page or line range) and required facts (nuggets), each supported by one or
    more alternative sets of evidence. `align` finds each quote in the
@@ -131,6 +132,64 @@ What the numbers measure:
   generation.
 
 [`tests/test_evaluation.py`](../tests/test_evaluation.py) shows every input shape on a small example.
+
+## Candidate retrieval and local vectors
+
+`CandidateIndex` wraps a built `Index` for caller-managed fusion. It keeps full
+passage text and existing citation locators, without neighboring context or a final
+evidence budget. Candidate IDs describe passage spans; the inventory identity binds
+the built index and its currently eligible passage contents. Apply a final packet
+budget after fusion and resolve citations through the original `Index`.
+
+```python
+from mimirag.candidates import CandidateIndex
+from mimirag.evaluation.fusion import rrf
+
+candidates = CandidateIndex(index)  # an existing, built Index
+inventory = candidates.inventory()
+lexical = candidates.lexical('lantern maintenance', limit=100)
+# Authored vectors for demonstration, not semantic embeddings.
+vectors = {key: [1.0, 0.0] for key in inventory['items']}
+dense = candidates.dense([1.0, 0.0], vectors, identity=inventory['identity'])
+if lexical['identity'] != dense['identity']:
+    raise ValueError('Inventory changed; restart retrieval')
+fused = rrf([[key for key, _ in lexical['ranking']],
+             [key for key, _ in dense['ranking']]], constant=60)
+packet = candidates.render([key for key, _ in fused[:5]], identity=dense['identity'])
+```
+
+Lexical scores are negated SQLite BM25 (higher is better), with passage-order ties.
+Dense scores are exact cosine similarities, with candidate-ID ties. Limits are
+integers from 1 through 100. The same metadata/date filters as `Index.search` apply;
+pass the same filters to rendering. Dense vectors must cover the complete unfiltered
+eligible inventory, even when ranking a filtered subset. Inventory changes cause a
+refusal; retain vectors for their original identity and rebuild after an admission
+change. Repeated checks detect changes across reads, without providing isolation
+against concurrent changes that occur and revert between checks. Inventory materialization
+and exact dense scoring are intended for bounded corpora; no speed or memory advantage
+is claimed.
+
+`save_vectors(path, vectors, receipt)` and `load_vectors(path, receipt, ids)` in
+`mimirag.embeddings` retain one atomic JSON artifact with an integrity digest.
+Vectors must be finite, nonzero, dimension-consistent and unit-normalized (tolerance
+`1e-5`). Receipts require `inventory`, `model`, `tokenizer` and `runtime` identities
+(nonempty strings or JSON objects), a positive integer `dimensions`, and a boolean
+`synthetic`. Identity objects are caller-defined provenance, not independently
+verified attestations. Loading checks the exact receipt and candidate ID set;
+malformed or changed artifacts raise `MimiRAGError`. Filesystem failures remain
+`OSError`. A failed publication preserves the prior artifact.
+
+`OfflineEmbedder` is an optional batch-one CPU adapter with last-attended-token pooling,
+unit normalization and a caller-selected query prefix/token cap. It is appropriate
+only for architectures requiring those choices. Constructing it with injected
+tokenizer/model/torch objects permits model-free tests. `from_local` first verifies
+the complete asset file allowlist and SHA-256 digests, refusing symlinks, then lazily
+imports separately installed `torch` and `transformers`. Loading uses
+`local_files_only=True` and `trust_remote_code=False`, sets four CPU threads, and
+requests float32. The core declares no inference dependencies. Model/tokenizer
+selection, dependency locking, asset acquisition, runtime provenance and architecture
+compatibility remain the caller's responsibility. No actual model runtime or retrieval
+quality is qualified by the injected tests.
 
 ## Package layout
 
