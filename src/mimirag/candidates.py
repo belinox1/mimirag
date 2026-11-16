@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Protocol
 
 from .embeddings import normalize
 from .errors import MimiRAGError
+from .evaluation.fusion import rrf
 from .evaluation.mirror import node_id
 from .index import SEARCH, Index, _add_filters, fts_query
 from .integrity import fingerprint
 from .packets import evidence_packet, passage_item
+
+
+class Embedder(Protocol):
+    def embed(self, text: str, *, query: bool = False) -> list[float]: ...
 
 
 class CandidateIndex:
@@ -101,3 +106,36 @@ class CandidateIndex:
         ):
             raise MimiRAGError('Inventory changed during ranking')
         return dict(identity=inventory['identity'], ranking=sorted(scores, key=lambda x: (-x[1], x[0]))[:limit])
+
+    def embed(self, embedder: Embedder) -> dict[str, list[float]]:
+        """Vectors for the complete unfiltered inventory, as `dense` and `hybrid` require."""
+        inventory = self.inventory()
+        vectors = {key: embedder.embed(item['excerpt']) for key, item in inventory['items'].items()}
+        if self.inventory()['identity'] != inventory['identity']:
+            raise MimiRAGError('Inventory changed during embedding')
+        return vectors
+
+    def hybrid(
+        self,
+        query: str,
+        *,
+        embedder: Embedder,
+        vectors: dict[str, list[float]],
+        identity: str,
+        limit: int = 10,
+        depth: int = 100,
+        constant: float = 60,
+        **filters: Any,
+    ) -> dict[str, Any]:
+        """Reciprocal-rank fusion of the top `depth` lexical and dense candidates.
+
+        `identity` is the unfiltered inventory the vectors were computed for.
+        """
+        if type(limit) is not int or not 1 <= limit <= depth:
+            raise MimiRAGError('Hybrid limit must be 1..depth')
+        lexical = self.lexical(query, limit=depth, **filters)
+        dense = self.dense(embedder.embed(query, query=True), vectors, identity=identity, limit=depth, **filters)
+        if lexical['identity'] != dense['identity']:
+            raise MimiRAGError('Inventory changed during ranking')
+        fused = rrf([[key for key, _ in lexical['ranking']], [key for key, _ in dense['ranking']]], constant=constant)
+        return self.render([key for key, _ in fused[:limit]], identity=dense['identity'], **filters)

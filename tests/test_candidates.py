@@ -144,3 +144,62 @@ def test_dense_filters_before_selection_and_rejects_changed_source(tmp_path):
     (tmp_path / 'one.txt').write_text('Changed source evidence')
     with pytest.raises(MimiRAGError):
         candidate.render(ids, identity=inventory['identity'])
+
+
+class Axis:
+    """Toy embedder: one dimension per keyword, so rankings are predictable."""
+
+    def __init__(self):
+        self.queries = []
+
+    def embed(self, text, *, query=False):
+        if query:
+            self.queries.append(text)
+        return [float(text.lower().count(word)) for word in ('oil', 'glass', 'lantern')] + [0.1]
+
+
+@pytest.fixture
+def lamp(tmp_path):
+    texts = {
+        'oil.txt': 'Pour fresh oil into the font.',
+        'glass.txt': 'Polish the glass weekly.',
+        'lantern.txt': 'The lantern burns oil behind glass.',
+    }
+    for name, text in texts.items():
+        (tmp_path / name).write_text(text + '\n')
+    index = Index(tmp_path / 'index.sqlite', dict(documents=[source(tmp_path, n) for n in texts]), root=tmp_path)
+    index.build()
+    return CandidateIndex(index)
+
+
+def test_hybrid_fuses_lexical_and_dense_into_resolvable_packet(lamp):
+    embedder = Axis()
+    vectors = lamp.embed(embedder)
+    identity = lamp.inventory()['identity']
+    packet = lamp.hybrid('oil', embedder=embedder, vectors=vectors, identity=identity)
+    sources = [item['locator']['source'] for item in packet['evidence']]
+    # Only dense retrieves the glass passage; fusion keeps it after both lexical matches.
+    assert set(sources[:2]) == {'oil', 'lantern'}
+    assert sources[2] == 'glass'
+    assert embedder.queries == ['oil']
+    for item in packet['evidence']:
+        assert lamp.index.resolve(item['locator'])['evidence'][0]['excerpt'] == item['excerpt']
+    assert len(lamp.hybrid('oil', embedder=embedder, vectors=vectors, identity=identity, limit=1)['evidence']) == 1
+    filtered = lamp.hybrid('oil', embedder=embedder, vectors=vectors, identity=identity, source='glass')
+    assert [item['locator']['source'] for item in filtered['evidence']] == ['glass']
+
+
+def test_hybrid_refuses_stale_or_mismatched_vectors(lamp):
+    embedder = Axis()
+    vectors = lamp.embed(embedder)
+    identity = lamp.inventory()['identity']
+    with pytest.raises(MimiRAGError):
+        lamp.hybrid('oil', embedder=embedder, vectors=dict(list(vectors.items())[1:]), identity=identity)
+    with pytest.raises(MimiRAGError):
+        lamp.hybrid('oil', embedder=embedder, vectors=vectors, identity='stale')
+    for limit in (0, 101, True):
+        with pytest.raises(MimiRAGError):
+            lamp.hybrid('oil', embedder=embedder, vectors=vectors, identity=identity, limit=limit)
+    (lamp.index.root / 'oil.txt').write_text('Changed.\n')
+    with pytest.raises(MimiRAGError):
+        lamp.hybrid('oil', embedder=embedder, vectors=vectors, identity=identity)

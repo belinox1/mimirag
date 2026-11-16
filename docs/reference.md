@@ -143,20 +143,29 @@ budget after fusion and resolve citations through the original `Index`.
 
 ```python
 from mimirag.candidates import CandidateIndex
-from mimirag.evaluation.fusion import rrf
+
+
+class Keywords:
+    """Authored stand-in for a real embedding model."""
+
+    def embed(self, text, *, query=False):
+        return [text.lower().count('lantern') + 0.1, text.lower().count('glass') + 0.1]
+
 
 candidates = CandidateIndex(index)  # an existing, built Index
-inventory = candidates.inventory()
-lexical = candidates.lexical('lantern maintenance', limit=100)
-# Authored vectors for demonstration, not semantic embeddings.
-vectors = {key: [1.0, 0.0] for key in inventory['items']}
-dense = candidates.dense([1.0, 0.0], vectors, identity=inventory['identity'])
-if lexical['identity'] != dense['identity']:
-    raise ValueError('Inventory changed; restart retrieval')
-fused = rrf([[key for key, _ in lexical['ranking']],
-             [key for key, _ in dense['ranking']]], constant=60)
-packet = candidates.render([key for key, _ in fused[:5]], identity=dense['identity'])
+identity = candidates.inventory()['identity']
+vectors = candidates.embed(Keywords())  # or load_vectors(...) for a retained artifact
+packet = candidates.hybrid('lantern maintenance', embedder=Keywords(), vectors=vectors, identity=identity, limit=5)
 ```
+
+`hybrid` fuses the top `depth` (default 100) lexical and dense candidates by
+reciprocal-rank fusion (`constant=60`) and renders the first `limit`. For other
+fusions, rank the channels yourself with `lexical(query, limit=...)` and
+`dense(query_vector, vectors, identity=...)`, check that both return the same
+`identity`, combine them with `rrf` or `convex` from `mimirag.evaluation.fusion`,
+and pass the chosen IDs to `render`. Any object with
+`embed(text, *, query=False) -> list[float]` is an embedder; `embed` covers the
+complete unfiltered inventory, as dense ranking requires.
 
 Lexical scores are negated SQLite BM25 (higher is better), with passage-order ties.
 Dense scores are exact cosine similarities, with candidate-ID ties. Limits are
@@ -273,7 +282,8 @@ that serves queries.
    records) with reference cases. It demonstrates and regression-tests the
    evaluation package; it is not a measure of quality.
 4. **Hybrid retrieval:** local open-weight embedding models, fusion and
-   optional reranking, each adopted only on a measured gain.
+   optional reranking, each adopted only on a measured gain. Exact dense
+   ranking and reciprocal-rank fusion are in place (`CandidateIndex.hybrid`).
 5. **Grounded generation:** answer synthesis with resolver-verified citations,
    unsupported-claim reporting and abstention, a pluggable model backend, and
    answer-level evaluation against the retrieval-only baseline.
