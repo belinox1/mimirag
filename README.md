@@ -117,7 +117,9 @@ index from the quick start (keep them rather than a temporary directory):
 }
 ```
 
-`mimirag.server.create_server(index, embedder=..., vectors=...)` adds
+An index built with an `admission` object or OCR settings must be served from
+Python with the same objects, `create_server(Index(..., admission=..., ocr=...))`;
+the command refuses it. `create_server(index, embedder=..., vectors=...)` also adds
 `mode="hybrid"` to `search` (see
 [candidate retrieval](docs/reference.md#candidate-retrieval-and-local-vectors)).
 

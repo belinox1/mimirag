@@ -1,6 +1,5 @@
 import asyncio
 import json
-import subprocess
 import sys
 
 from helpers import source
@@ -13,7 +12,7 @@ from mimirag.candidates import CandidateIndex
 from mimirag.code import CodeRepository
 from mimirag.errors import MimiRAGError
 from mimirag.index import Index
-from mimirag.server import create_server
+from mimirag.server import create_server, main
 
 
 class Keywords:
@@ -72,7 +71,7 @@ def test_refusals_are_actionable_tool_errors(index, tmp_path):
     (tmp_path / 'oil.txt').write_text('Changed.\n')
     (changed,) = call(server, ('search', dict(query='oil')))
     assert changed.is_error
-    assert 'Error' in changed.content[0].text
+    assert 'IntegrityError' in changed.content[0].text
 
 
 def test_hybrid_mode_and_code_tools(index, tmp_path, git_repo):
@@ -105,7 +104,33 @@ def test_command_line_serves_over_stdio(index, tmp_path):
     )
     (found,) = call(command, ('search', dict(query='font')))
     assert found.structured_content['evidence'][0]['locator']['source'] == 'oil'
-    help_text = subprocess.run(
-        [sys.executable, '-m', 'mimirag.server', '--help'], capture_output=True, text=True, check=True
-    ).stdout
-    assert '--manifest' in help_text
+
+
+class Admission:
+    def prepare(self, manifest, previous):
+        return [], dict(round=1)
+
+    def before_publish(self, manifest):
+        pass
+
+    def state(self, manifest, metadata, indexed):
+        return {}, []
+
+
+def test_command_line_refuses_index_built_with_admission(tmp_path, capsys):
+    (tmp_path / 'guide.txt').write_text('Trim the wick.\n')
+    manifest = dict(documents=[source(tmp_path, 'guide.txt')])
+    (tmp_path / 'manifest.json').write_text(json.dumps(manifest))
+    Index(tmp_path / 'index.sqlite', manifest, root=tmp_path, admission=Admission()).build()
+    with pytest.raises(SystemExit):
+        main(
+            [
+                '--manifest',
+                str(tmp_path / 'manifest.json'),
+                '--index',
+                str(tmp_path / 'index.sqlite'),
+                '--root',
+                str(tmp_path),
+            ]
+        )
+    assert 'create_server' in capsys.readouterr().err

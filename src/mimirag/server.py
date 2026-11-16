@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Callable
 import functools
+import json
 from typing import Any, Literal, TypeVar
 
 from mcp.server.mcpserver import MCPServer
@@ -79,7 +80,8 @@ def create_server(
     ) -> dict[str, Any]:
         """Find passages for a query, with citation locators.
 
-        `limit` is 1..20. `mode='hybrid'` adds dense ranking when the server has vectors.
+        `limit` is 1..20. `mode='hybrid'` adds dense ranking when the server has vectors; its
+        packet holds full passages without ranks, neighbouring context or a query trace.
         Filters match source metadata; `since`/`until` are ISO dates.
         """
         if mode == 'lexical':
@@ -151,6 +153,15 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     manifest = load_manifest(args.manifest)
     index = Index(args.index, manifest, root=args.root)
+    with index._open() as db:
+        admitted = json.loads(db.execute("SELECT value FROM metadata WHERE key='profile'").fetchone()[0])
+        _, extractor = index._built_identity(db)
+    if admitted is not None or extractor['ocr'] is not None:
+        # Serving without the build's admission would return superseded sources; without OCR, PDF citations refuse.
+        parser.error(
+            'index was built with admission or OCR settings; serve it from Python with '
+            'create_server(Index(..., admission=..., ocr=...))'
+        )
     code = None
     if 'code' in manifest:
         code = CodeRepository(args.root, manifest['code'], qualification=args.code_qualification)
