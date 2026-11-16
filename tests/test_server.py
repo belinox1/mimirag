@@ -134,3 +134,6 @@ def test_command_line_refuses_index_built_with_admission(tmp_path, capsys):
             ]
         )
     assert 'create_server' in capsys.readouterr().err
+    with pytest.raises(SystemExit):
+        main(['--manifest', str(tmp_path / 'manifest.json'), '--index', str(tmp_path / 'absent.sqlite')])
+    assert 'build it first' in capsys.readouterr().err

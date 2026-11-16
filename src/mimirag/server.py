@@ -153,9 +153,13 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     manifest = load_manifest(args.manifest)
     index = Index(args.index, manifest, root=args.root)
-    with index._open() as db:
-        admitted = json.loads(db.execute("SELECT value FROM metadata WHERE key='profile'").fetchone()[0])
-        _, extractor = index._built_identity(db)
+    try:
+        with index._open() as db:
+            row = db.execute("SELECT value FROM metadata WHERE key='profile'").fetchone()
+            admitted = json.loads(row[0]) if row else None  # older schemas refuse at the first query
+            _, extractor = index._built_identity(db)
+    except MimiRAGError as error:
+        parser.error(str(error))
     if admitted is not None or extractor['ocr'] is not None:
         # Serving without the build's admission would return superseded sources; without OCR, PDF citations refuse.
         parser.error(
