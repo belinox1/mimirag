@@ -11,7 +11,7 @@ license = "Apache-2.0"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [{ name = "Bernardo Lino de Oliveira" }]
-keywords = ["rag", "retrieval", "citations", "bm25", "sqlite", "information-retrieval", "evaluation"]
+keywords = ["rag", "retrieval", "citations", "bm25", "sqlite", "information-retrieval", "evaluation", "mcp"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Developers",
@@ -33,7 +33,11 @@ Repository = "https://github.com/belinox1/mimirag"
 Issues = "https://github.com/belinox1/mimirag/issues"
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.15", "mypy>=1.18"]
+mcp = ["mcp>=2.3,<3"]
+dev = ["pytest>=8", "ruff>=0.15", "mypy>=1.18", "mcp>=2.3,<3"]
+
+[project.scripts]
+mimirag-mcp = "mimirag.server:main"
 
 [tool.hatch.version]
 path = "src/mimirag/__init__.py"

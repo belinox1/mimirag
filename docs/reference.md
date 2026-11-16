@@ -21,8 +21,8 @@ The details behind the [quick start](../README.md#quick-start).
   resolution. Each query runs only cheap checks: file stat keys, Git commits
   and the deployment's admission state.
 - **Lightweight.** One SQLite file per index, published by atomic rename, so a
-  failed build leaves the previous index in place. No server, queue or hosted
-  database.
+  failed build leaves the previous index in place. No hosted service, queue or
+  database; the optional MCP server is a local stdio process.
 - **Untrusted content, trusted configuration.** Retrieved text is evidence,
   never instructions. Query text is never parsed as FTS5 or regular-expression
   syntax, code reads stay within the declared scope, results are bounded and
@@ -210,6 +210,8 @@ quality is qualified by the injected tests.
 | `mimirag.code` | `CodeRepository`: literal search and bounded reads at a pinned commit |
 | `mimirag.sources`, `mimirag.git`, `mimirag.integrity` | Manifests, verified source bytes, pinned Git reads, confined paths and hashing |
 | `mimirag.packets`, `mimirag.datatypes`, `mimirag.errors` | Result shapes, typed manifest and locator fields, and the error hierarchy |
+| `mimirag.candidates`, `mimirag.embeddings` | `CandidateIndex`: deep lexical and exact dense candidates, RRF hybrid search; vector artifacts and the offline embedding adapter |
+| `mimirag.server` | `mimirag-mcp`: read-only MCP tools over an index and optional code repository (`mimirag[mcp]`) |
 | `mimirag.evaluation` | Alignment, scoring, paired comparisons, run manifests, the index mirror and blinded pools |
 
 Every refusal raises a `MimiRAGError` (a `ValueError`): `IntegrityError` when
@@ -274,9 +276,9 @@ that serves queries.
 1. **Retrieval and citation core** (done, except the record interface):
    extraction, lexical index, citation resolver, code reader and retrieval
    evaluation, with tests built on fixtures written for this project.
-2. **MCP server:** typed tool schemas, structured results, read-only
-   behaviour and actionable errors, so that agents can use MimiRAG for RAG
-   with their own models.
+2. **MCP server** (done): typed tool schemas,
+   structured results, read-only behaviour and actionable errors, so that
+   agents can use MimiRAG for RAG with their own models.
 3. **Example benchmark:** a small, domain-agnostic corpus authored entirely
    for this project (documents, PDFs, a toy code repository and synthetic
    records) with reference cases. It demonstrates and regression-tests the

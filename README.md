@@ -24,9 +24,10 @@ no Python runtime dependencies beyond the standard library.
 - **Retrieval evaluation:** gold-quote alignment, evidence coverage under
   rank or character budgets, and paired comparisons of ranking variants.
 
-**Pre-alpha:** document retrieval, citation verification, pinned code reads
-and retrieval evaluation work today. APIs may change. An MCP server, hybrid
-retrieval and answer generation are on the [roadmap](docs/reference.md#roadmap).
+**Pre-alpha:** document retrieval, citation verification, pinned code reads,
+retrieval evaluation and a read-only MCP server work today. APIs may change.
+Evaluated hybrid retrieval and answer generation are on the
+[roadmap](docs/reference.md#roadmap).
 
 ## Quick start
 
@@ -90,6 +91,35 @@ source. To index an intentional edit, update its manifest hash and rebuild.
 
 The [usage guide](docs/reference.md#usage) covers manifests for your own files,
 metadata filters, PDFs, OCR and code search.
+
+## Use from an agent
+
+`mimirag-mcp` serves a built index to MCP clients over stdio, with read-only
+`search` and `resolve` tools, plus `code_search` and `code_read` when the
+manifest declares a code repository. It never builds the index: refusals such as
+a changed source come back as tool errors that say what to do.
+
+```sh
+python -m pip install -e '.[mcp]'
+```
+
+For Claude Code, add this to `.mcp.json` in your project, using the manifest and
+index from the quick start (keep them rather than a temporary directory):
+
+```json
+{
+  "mcpServers": {
+    "mimirag": {
+      "command": "mimirag-mcp",
+      "args": ["--manifest", "manifest.json", "--index", "index.sqlite3", "--root", "."]
+    }
+  }
+}
+```
+
+`mimirag.server.create_server(index, embedder=..., vectors=...)` adds
+`mode="hybrid"` to `search` (see
+[candidate retrieval](docs/reference.md#candidate-retrieval-and-local-vectors)).
 
 ## Documentation
 
