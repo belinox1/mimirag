@@ -203,3 +203,15 @@ def test_hybrid_refuses_stale_or_mismatched_vectors(lamp):
     (lamp.index.root / 'oil.txt').write_text('Changed.\n')
     with pytest.raises(MimiRAGError):
         lamp.hybrid('oil', embedder=embedder, vectors=vectors, identity=identity)
+
+
+def test_compact_render_keeps_citations_and_default(many_candidates):
+    candidate = many_candidates
+    inventory = candidate.inventory()
+    ids = list(inventory['items'])[:2]
+    full = candidate.render(ids, identity=inventory['identity'])
+    compact = candidate.render(ids, identity=inventory['identity'], compact=True)
+    assert 'format' not in full
+    for old, new in zip(full['evidence'], compact['evidence'], strict=True):
+        assert {**new, **compact['sources'][new['source']]} == old
+        assert candidate.index.resolve(new['locator'])['evidence'][0]['excerpt'] == new['excerpt']

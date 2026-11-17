@@ -7,6 +7,7 @@ import sqlite3
 from typing import Any
 
 from .datatypes import Packet, PassageLocator
+from .errors import MimiRAGError
 from .integrity import digest
 
 LOCATOR_FORMAT = 2
@@ -53,3 +54,24 @@ def passage_item(row: sqlite3.Row) -> dict[str, Any]:
         freshness=PASSAGE_FRESHNESS,
         truncated=len(text) > MAX_EXCERPT,
     )
+
+
+def compact_packet(packet: dict[str, Any]) -> dict[str, Any]:
+    """Losslessly share repeated source metadata; locators remain self-contained.
+
+    Format ``compact-v1`` is opt-in. Source references are local to this packet,
+    never server state. Conflicting metadata for one source is refused.
+    """
+    if 'format' in packet or 'sources' in packet:
+        raise MimiRAGError('Expected a full evidence packet')
+    sources: dict[str, Any] = {}
+    evidence = []
+    for item in packet['evidence']:
+        source = item['source']
+        key = source['id']
+        metadata = dict(source=source, qualification=item['qualification'], freshness=item['freshness'])
+        if key in sources and sources[key] != metadata:
+            raise MimiRAGError('Conflicting source metadata')
+        sources[key] = metadata
+        evidence.append({**{k: v for k, v in item.items() if k not in metadata}, 'source': key})
+    return {**packet, 'format': 'compact-v1', 'sources': sources, 'evidence': evidence}

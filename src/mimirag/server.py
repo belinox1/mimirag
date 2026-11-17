@@ -21,6 +21,7 @@ from .candidates import CandidateIndex, Embedder
 from .code import CodeRepository
 from .errors import MimiRAGError
 from .index import Index
+from .packets import compact_packet
 from .sources import load_manifest
 
 READ_ONLY = ToolAnnotations(read_only_hint=True, idempotent_hint=True, open_world_hint=False)
@@ -71,6 +72,7 @@ def create_server(
         *,
         limit: int = 10,
         mode: Literal['lexical', 'hybrid'] = 'lexical',
+        compact: bool = False,
         source: str | None = None,
         family: str | None = None,
         topic: str | None = None,
@@ -85,7 +87,7 @@ def create_server(
         Filters match source metadata; `since`/`until` are ISO dates.
         """
         if mode == 'lexical':
-            return dict(
+            packet = dict(
                 index.search(
                     query,
                     limit=limit,
@@ -97,6 +99,7 @@ def create_server(
                     until=until,
                 )
             )
+            return compact_packet(packet) if compact else packet
         if embedder is None or vectors is None or identity is None:
             raise MimiRAGError('Hybrid search is not configured on this server; use mode="lexical"')
         if not 1 <= limit <= 20:
@@ -107,6 +110,7 @@ def create_server(
             vectors=vectors,
             identity=identity,
             limit=limit,
+            compact=compact,
             source=source,
             family=family,
             topic=topic,

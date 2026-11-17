@@ -314,3 +314,14 @@ Python 3.11 to 3.14.
   not vendored.
 
 Copyright 2026 Bernardo Lino de Oliveira.
+
+
+### Compact evidence packets
+
+`CandidateIndex.render(..., compact=True)`, `CandidateIndex.hybrid(..., compact=True)`
+and MCP `search(compact=True)` opt into `format: "compact-v1"`. Defaults are unchanged.
+The packet's `sources` table maps source IDs to `{source, qualification, freshness}`;
+each evidence item's `source` becomes that ID. All other item and packet fields,
+including full citation locators and context, remain unchanged. References are local
+to the packet. Reconstruct a full item by merging its source-table entry into it.
+Pass the unchanged locator to `resolve`. Conflicting metadata for one ID is refused.

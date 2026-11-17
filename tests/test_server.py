@@ -137,3 +137,16 @@ def test_command_line_refuses_index_built_with_admission(tmp_path, capsys):
     with pytest.raises(SystemExit):
         main(['--manifest', str(tmp_path / 'manifest.json'), '--index', str(tmp_path / 'absent.sqlite')])
     assert 'build it first' in capsys.readouterr().err
+
+
+@pytest.mark.parametrize('mode', ['lexical', 'hybrid'])
+def test_compact_search_round_trip(index, mode):
+    embedder = Keywords()
+    server = create_server(index, embedder=embedder, vectors=CandidateIndex(index).embed(embedder))
+    full, compact = call(server, ('search', dict(query='oil', mode=mode)),
+                         ('search', dict(query='oil', mode=mode, compact=True)))
+    a, b = full.structured_content, compact.structured_content
+    assert b['format'] == 'compact-v1'
+    assert [{**e, **b['sources'][e['source']]} for e in b['evidence']] == a['evidence']
+    (resolved,) = call(server, ('resolve', dict(locator=b['evidence'][0]['locator'])))
+    assert not resolved.is_error

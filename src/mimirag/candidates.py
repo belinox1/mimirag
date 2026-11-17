@@ -10,7 +10,7 @@ from .evaluation.fusion import rrf
 from .evaluation.mirror import node_id
 from .index import SEARCH, Index, _add_filters, fts_query
 from .integrity import fingerprint
-from .packets import evidence_packet, passage_item
+from .packets import compact_packet, evidence_packet, passage_item
 
 
 class Embedder(Protocol):
@@ -71,13 +71,14 @@ class CandidateIndex:
             raise MimiRAGError('Inventory changed during ranking')
         return dict(identity=inventory['identity'], ranking=ranking)
 
-    def render(self, ids: list[str], *, identity: str, **filters: Any) -> dict[str, Any]:
+    def render(self, ids: list[str], *, identity: str, compact: bool = False, **filters: Any) -> dict[str, Any]:
         inventory = self.inventory(**filters)
         if inventory['identity'] != identity or len(set(ids)) != len(ids):
             raise MimiRAGError('Stale or duplicate candidate selection')
         if any(key not in inventory['items'] for key in ids):
             raise MimiRAGError('Unknown or ineligible candidate')
-        return dict(evidence_packet('search', [inventory['items'][key] for key in ids], notices=inventory['notices']))
+        packet = dict(evidence_packet('search', [inventory['items'][key] for key in ids], notices=inventory['notices']))
+        return compact_packet(packet) if compact else packet
 
     def dense(
         self, query: list[float], vectors: dict[str, list[float]], *, identity: str, limit: int = 100, **filters: Any
@@ -125,6 +126,7 @@ class CandidateIndex:
         limit: int = 10,
         depth: int = 100,
         constant: float = 60,
+        compact: bool = False,
         **filters: Any,
     ) -> dict[str, Any]:
         """Reciprocal-rank fusion of the top `depth` lexical and dense candidates.
@@ -138,4 +140,4 @@ class CandidateIndex:
         if lexical['identity'] != dense['identity']:
             raise MimiRAGError('Inventory changed during ranking')
         fused = rrf([[key for key, _ in lexical['ranking']], [key for key, _ in dense['ranking']]], constant=constant)
-        return self.render([key for key, _ in fused[:limit]], identity=dense['identity'], **filters)
+        return self.render([key for key, _ in fused[:limit]], identity=dense['identity'], compact=compact, **filters)
